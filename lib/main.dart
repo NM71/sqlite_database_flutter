@@ -1,5 +1,6 @@
 import 'package:database_flutter/home_page.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,7 +15,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.tealAccent)),
+      theme: ThemeData(
+        colorScheme: .fromSeed(seedColor: Colors.tealAccent),
+        textTheme: GoogleFonts.latoTextTheme(),
+      ),
       home: const HomePage(),
     );
   }

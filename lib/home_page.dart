@@ -1,5 +1,7 @@
 import 'package:database_flutter/data/local/db_helper.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,8 +15,8 @@ class _HomePageState extends State<HomePage> {
   DBHelper? dbRef;
 
   // controllers
-  var titleText = TextEditingController();
-  var descText = TextEditingController();
+  var titleController = TextEditingController();
+  var descController = TextEditingController();
 
   @override
   void initState() {
@@ -32,8 +34,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Icon(Icons.book_outlined),
-        title: Text('Flutter Local DB'),
+        leading: Icon(
+          Icons.book_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          'Flutter SQLite DB',
+          style: TextStyle(color: Theme.of(context).colorScheme.primary),
+        ),
       ),
       body: allNotes.isNotEmpty
           ? ListView.builder(
@@ -54,12 +62,38 @@ class _HomePageState extends State<HomePage> {
                         mainAxisSize: .min,
                         children: [
                           IconButton(
-                            onPressed: () {},
+                            onPressed: () async {
+                              bool check = await dbRef!.deleteNote(
+                                sno: allNotes[index][DBHelper.COLUMN_NOTE_SNO],
+                              );
+                              if (check) {
+                                getNotes();
+                              }
+                            },
                             icon: Icon(Icons.delete_outline),
                           ),
                           // const SizedBox(width: 10,),
                           IconButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (context) {
+                                  titleController.text =
+                                      allNotes[index][DBHelper
+                                          .COLUMN_NOTE_TITLE];
+                                  descController.text =
+                                      allNotes[index][DBHelper
+                                          .COLUMN_NOTE_DESC];
+
+                                  return getBottomSheetWidget(
+                                    isUpdate: true,
+                                    sno:
+                                        allNotes[index][DBHelper
+                                            .COLUMN_NOTE_SNO],
+                                  );
+                                },
+                              );
+                            },
                             icon: Icon(Icons.edit_outlined),
                           ),
                         ],
@@ -81,41 +115,40 @@ class _HomePageState extends State<HomePage> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          print('BottomSheet Opened');
+          if (kDebugMode) {
+            print('BottomSheet Opened');
+          }
           showModalBottomSheet(
             context: context,
             builder: (context) {
+              titleController.clear();
+              descController.clear();
               return getBottomSheetWidget();
             },
           );
-
-          // bool check = await dbRef!.addNote(
-          //   mTitle: "Hello World",
-          //   mDesc: "This is a sample msg for Hello",
-          // );
-
-          // if (check) {
-          //   // when we are adding a note, we also need to get all notes to update the UI
-          //   getNotes();
-          // }
         },
-        child: Icon(Icons.note_add_outlined),
+        child: FaIcon(FontAwesomeIcons.plus, size: 20),
       ),
     );
   }
 
   // BottomSheet Code
-  Widget getBottomSheetWidget() {
+  Widget getBottomSheetWidget({bool isUpdate = false, int sno = 0}) {
+    // setting value of title controller in case of reusability for add/update note functions
+
     return Scaffold(
       body: Container(
         padding: EdgeInsets.all(30),
         child: Column(
           mainAxisSize: .min,
           children: [
-            Text('Add New Note', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              isUpdate ? 'Update Note' : 'Add Note',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 20),
             TextField(
-              controller: titleText,
+              controller: titleController,
               decoration: InputDecoration(
                 label: Text('Enter title'),
                 border: OutlineInputBorder(
@@ -125,7 +158,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 20),
             TextField(
-              controller: descText,
+              controller: descController,
               maxLines: 4,
               decoration: InputDecoration(
                 label: Text('Enter description'),
@@ -140,37 +173,45 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      String title = titleText.text.trim();
-                      String desc = descText.text.trim();
+                      String title = titleController.text.trim();
+                      String desc = descController.text.trim();
 
                       if (title.isNotEmpty && desc.isNotEmpty) {
-                        bool check = await dbRef!.addNote(
-                          mTitle: title,
-                          mDesc: desc,
-                        );
+                        bool check = isUpdate
+                            ? await dbRef!.updateNote(
+                                sno: sno,
+                                title: title,
+                                desc: desc,
+                              )
+                            : await dbRef!.addNote(mTitle: title, mDesc: desc);
 
                         if (check) {
                           // when we are adding a note, we also need to get all notes to update the UI
                           getNotes();
-                          print('Note Added');
+                          if (kDebugMode) {
+                            print('Note Added');
+                          }
                         }
                         Navigator.pop(context);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
                             behavior: SnackBarBehavior.floating,
                             content: Text('Please enter all the values'),
                           ),
                         );
                       }
                     },
-                    child: Text('Add'),
                     style: ElevatedButton.styleFrom(
                       elevation: 3,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadiusGeometry.circular(10),
                       ),
                     ),
+                    child: Text(isUpdate ? 'Update' : 'Add'),
                   ),
                 ),
                 const SizedBox(width: 11),
@@ -179,7 +220,6 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.pop(context);
                     },
-                    child: Text('Cancel'),
                     style: ElevatedButton.styleFrom(
                       elevation: 3,
 
@@ -187,39 +227,11 @@ class _HomePageState extends State<HomePage> {
                         borderRadius: BorderRadiusGeometry.circular(10),
                       ),
                     ),
+                    child: Text('Cancel'),
                   ),
                 ),
               ],
             ),
-            // GestureDetector(
-            //   onTap: () async {
-            //     String title = titleText.text.trim();
-            //     String desc = descText.text.trim();
-
-            //     if (title.isNotEmpty && desc.isNotEmpty) {
-            //       bool check = await dbRef!.addNote(
-            //         mTitle: title,
-            //         mDesc: desc,
-            //       );
-
-            //       if (check) {
-            //         // when we are adding a note, we also need to get all notes to update the UI
-            //         getNotes();
-            //         print('Note Added');
-            //         Navigator.pop(context);
-            //       }
-            //     } else {
-            //       ScaffoldMessenger.of(context).showSnackBar(
-            //         SnackBar(
-            //           content: Text('Please enter all the values'),
-            //         ),
-            //       );
-            //     }
-            //   },
-            //   child: CircleAvatar(
-            //     child: Icon(Icons.arrow_forward_ios_sharp),
-            //   ),
-            // ),
           ],
         ),
       ),
